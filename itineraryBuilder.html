@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Plan Your Trip</title>
+    </head>
+    <body>
+        <div>
+            <h1>Plan Your Trip</h1>
+            Name of Trip: <input id="title" type="text" name="title"><br>
+            Name of Person: <input id="person" type="text" name="person"><br>
+            Email: <input id="email" type="text" name="email"><br>
+            <h3>Trip Details</h3>
+            <form id="TripForm">
+                Name of Event: <input type="text" name="event"><br>
+                Location (i.e address): <input type="text" name="location"><br>
+                Start Date: <input type="date" name="startDate"><br>
+                Start Time: <input type="time" name="startTime"><br>
+                End Date: <input type="date" name="endDate"><br>
+                End Time: <input type="time" name="endTime"><br>
+                Notes(optional): <input type="text" name="notes"><br>
+                <input type="button" onclick="addValues()" value="Submit">
+            </form>
+            <h3>Remove Entry</h3>
+            Entry Number:<input id="entryNum" type="number" name="entryNum"><br>
+            <input type="button" onclick="removeEntry()" value="Remove Entry"><br>
+            <input type="button" onclick="createAndExport()" value="Export Itinerary">
+            <button id="emailItinerary">Email Itinerary</button>
+            <input type="button" onclick="processValues()" value="Print Itinerary">
+            <h5>Submission Status:</h5>
+            <p id="Submission error"></p>
+            <h5>Itinerary:</h5>
+            <p id="demo"></p>
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+            <script>
+                var itinerary = [];
+                var itineraryCache = [];
+                var beginDefault = [
+                    'BEGIN:VCALENDAR',
+                    'PRODID:RISHYRAJ',
+                    'VERSION:2.0',
+                    'CALSCALE:GREGORIAN',
+                    'METHOD:PUBLISH'
+                    ];
+                var endDefault = ['END:VCALENDAR'];
+
+                var calFile = [];
+                var tripFileName = ""
+
+                function validation() {
+                    var dateCheck = false;
+                    var timeCheck = false;
+                    var errorMessages = "";
+                    var inputStartDate = document.getElementById("TripForm")[2].value
+                    var inputStartTime = document.getElementById("TripForm")[3].value
+                    var inputEndDate = document.getElementById("TripForm")[4].value
+                    var inputEndTime = document.getElementById("TripForm")[5].value
+                    if (parseInt(inputStartDate.substring(0,4)) <= parseInt(inputEndDate.substring(0,4))) {
+                        var yr = parseInt(inputStartDate.substring(0,4)) == parseInt(inputEndDate.substring(0,4))
+                        if ((parseInt(inputStartDate.substring(5,7)) <= parseInt(inputEndDate.substring(5,7)))&&yr) {
+                            var a = parseInt(inputStartDate.substring(0,4)) != parseInt(inputEndDate.substring(0,4))
+                            var b = parseInt(inputStartDate.substring(5,7)) != parseInt(inputEndDate.substring(5,7))
+                            if (a || b) {
+                                dateCheck = true;
+                            } else {
+                                if (parseInt(inputStartDate.substring(8,inputStartDate.length)) <= parseInt(inputEndDate.substring(8,inputEndDate.length))) {
+                                    dateCheck = true;
+                                } else {
+                                    dateCheck = false;
+                                    errorMessages += "Date Error: End Day Before Start Day<br>"
+                                }
+                            }
+                        } else {
+                            if (yr) {
+                                dateCheck = false
+                                errorMessages += "Date Error: End Month Before Start Month<br>"
+                            } else {
+                                dateCheck = true
+                            }
+                        }
+                    } else {
+                        dateCheck = false
+                        errorMessages += "Date Error: End Year Before Start Year"
+                    }
+                    if (parseInt(inputStartTime.substring(0,2)) <= parseInt(inputEndTime.substring(0,2))) {
+                        if (parseInt(inputStartTime.substring(0,2)) != parseInt(inputEndTime.substring(0,2))) {
+                            timeCheck = true;
+                        } else {
+                            if (parseInt(inputStartTime.substring(3,5)) < parseInt(inputEndTime.substring(3,5))) {
+                                timeCheck = true
+                            } else {
+                                timeCheck = false;
+                                errorMessages += "Time Error: End Minute Before or Equal to Start Minute"
+                            }
+                        }
+                    } else {
+                        timeCheck = false;
+                        errorMessages += "Time Error: End Hour Before Start Hour"
+                    }
+                    if (dateCheck && timeCheck) {
+                        document.getElementById("Submission error").innerHTML = "Submission Successful<br>";
+                        return true;
+                    } else {
+                        document.getElementById("Submission error").innerHTML = errorMessages;
+                        return false
+                    }
+                }
+                function addValues() {
+                    if (validation()) {
+                        var event = [];
+                        var x = document.getElementById("TripForm")
+                        for (var i = 0; i < x.length - 1; i++) {
+                            event.push(x.elements[i].value + "<br>");
+                        }
+                        itinerary.push(event);
+                    }
+                }
+                function processValues() {
+                    var text = "";
+                    for (var i = 0; i < itinerary.length; i++) {
+                        text += "Entry #"+(i+1)+"<br>"
+                        text += "<br>"
+                        for (var j = 0; j < itinerary[i].length; j++) {
+                            text += itinerary[i][j]
+                        }
+                        text +="<br>"
+                    }
+                    document.getElementById("demo").innerHTML = text;
+
+                }
+                function removeEntry() {
+                    var index = document.getElementById("entryNum").value
+                    itinerary.splice(index - 1, 1)
+                    processValues()
+                }
+
+                function createCalFile() {
+                    var tName = document.getElementById("title").value
+                    tripFileName=tName+'.ics';
+                    beginDefault=beginDefault.join('\r\n');
+                    calFile.push(beginDefault);
+                    for (var i=0; i < itinerary.length; i++) {
+                        itineraryCache.push(itinerary[i])
+                        //formats in ics format
+                        var notes=itinerary[i][6].substring(0,itinerary[i][6].length-4)
+                        var startDate=itinerary[i][2].substring(0,itinerary[i][2].length-4)+'T'+itinerary[i][3].substring(0,itinerary[i][3].length-4)+"00";
+                        var endDate=itinerary[i][4].substring(0,itinerary[i][4].length-4)+'T'+itinerary[i][5].substring(0,itinerary[i][5].length-4)+"00";         
+                        var location=itinerary[i][1].substring(0,itinerary[i][1].length-4);
+                        var eventName=itinerary[i][0].substring(0,itinerary[i][0].length-4);  
+                        startDate = startDate.replace("-","")
+                        startDate = startDate.replace("-","")
+                        startDate = startDate.replace(":","")
+                        endDate = endDate.replace("-","")
+                        endDate = endDate.replace("-","")
+                        endDate = endDate.replace(":","")
+                        var calendarEvent = [
+                            'BEGIN:VEVENT',
+                            'DTSTART:'+startDate,
+                            'DTEND:'+endDate,
+                            'DESCRIPTION:'+ notes,
+                            'LOCATION:'+ location,
+                            'STATUS:CONFIRMED',
+                            'SUMMARY;LANGUAGE=en-us:'+ eventName,
+                            'TRANSP:TRANSPARENT',
+                            'END:VEVENT'
+                        ];
+                        calendarEvent=calendarEvent.join('\r\n');
+                        calFile.push(calendarEvent);  
+                    }
+                    calFile.push(endDefault);
+                    calFile=calFile.join('\r\n');
+                }
+                //exports ics file in the same location as this javascript file
+                function download(filename, text) {
+                    var element = document.createElement('a');
+                    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+                    element.setAttribute('download', filename);
+
+                    element.style.display = 'none';
+                    document.body.appendChild(element);
+
+                    element.click();
+
+                    document.body.removeChild(element);
+                }
+                function createAndExport() {
+                    createCalFile();
+                    download(tripFileName, calFile)
+                    beginDefault = [
+                    'BEGIN:VCALENDAR',
+                    'PRODID:RISHYRAJ',
+                    'VERSION:2.0',
+                    'CALSCALE:GREGORIAN',
+                    'METHOD:PUBLISH'
+                    ];
+                    itinerary = itineraryCache
+                    itineraryCache = []
+                    endDefault = ['END:VCALENDAR']
+                    calFile = []
+                }
+            </script>
+            <script>
+                $(function() {
+                    $('#emailItinerary').on('click', function() {
+                        createCalFile()
+                        var person = $('#person').val()
+                        var email = $('#email').val()
+                        var info =  {
+                            calFile: calFile,
+                            tripFileName: tripFileName,
+                            person: person,
+                            email: email
+                        }
+                        $.ajax({
+                            type: 'POST',
+                            url: 'http://localhost:3000',
+                            data: info,
+                            success: function(recInfo) {
+                                console.log("success", recInfo)
+                            },
+                            error: function() {
+                                alert('Error: Could not send email')
+                            }
+                        })
+                        beginDefault = [
+                        'BEGIN:VCALENDAR',
+                        'PRODID:RISHYRAJ',
+                        'VERSION:2.0',
+                        'CALSCALE:GREGORIAN',
+                        'METHOD:PUBLISH'
+                        ];
+                        itinerary = itineraryCache
+                        itineraryCache = []
+                        endDefault = ['END:VCALENDAR']
+                        calFile = []
+                    })
+                })
+            </script>
+        </div>
+    </body>
+</html>
